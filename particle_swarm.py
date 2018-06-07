@@ -6,6 +6,9 @@ from collections import namedtuple
 
 from search_space import param_decorator, SearchSpace
 from utils import generate_sobol_sequences
+from Optimizer import Optimizer
+from Algorithm import Algorithm
+from scoop import futures
 
 
 class Particle:
@@ -20,6 +23,11 @@ class Particle:
 
         self.best_position = self.position
         self.best_fitness = np.inf
+
+        self.evaluator = None
+
+    def set_eval_fn(self, evaluator):
+        self.evaluator = evaluator
 
     def get_position(self):
         return self.position
@@ -36,8 +44,8 @@ class Particle:
         self.position = self.position + self.velocity
         return self.position
 
-    def evaluate_fitness(self, f):
-        fitness = f(*self.position)
+    def evaluate_fitness(self):
+        fitness = self.evaluator.eval(*self.position)
 
         if fitness < self.best_fitness:
             self.best_fitness = fitness
@@ -45,8 +53,10 @@ class Particle:
         return fitness
 
 
-class PSO:
-    def __init__(self, num_generations, num_particles, lb, ub, phi1=1.5, phi2=2.0):
+class PSO(Algorithm):
+    def __init__(self, lb, ub, num_generations, num_particles, phi1=1.5, phi2=2.0):
+        super(PSO, self).__init__(lb, ub)
+
         self.num_generations = num_generations
         self.num_particles = num_particles
 
@@ -56,83 +66,31 @@ class PSO:
         self.best_fitness = np.inf
         self.best_position = None
 
-    def optimize(self, eval_fn):
-        for j, particle in enumerate(self.swarm):
+    def run(self, evaluator):
+        for particle in self.swarm:
+            particle.set_eval_fn(evaluator)
 
-            # evaluate particle
-            fitness = particle.evaluate_fitness(eval_fn)
+        # evaluate particle
+        fitnesses = list(futures.map(lambda p: p.evaluate_fitness(), self.swarm))
 
-            if fitness < self.best_fitness:
-                self.best_fitness = fitness
-                self.best_position = particle.get_position()
-
-            self.swarm[j] = particle
+        self.best_fitness = np.min(fitnesses)
+        self.best_position = self.swarm[np.argmin(fitnesses)].position
 
         for i in range(self.num_generations):
-            for j, particle in enumerate(self.swarm):
 
-                # update particle
+            # update particle
+            for particle in self.swarm:
                 particle.update_position(self.best_position)
 
-                # evaluate particle
-                fitness = particle.evaluate_fitness(eval_fn)
-
-                if fitness < self.best_fitness:
-                    self.best_fitness = fitness
-                    self.best_position = particle.get_position()
-
-                self.swarm[j] = particle
+            # evaluate particle
+            fitnesses = list(futures.map(lambda p: p.evaluate_fitness(), self.swarm))
+            self.best_fitness = np.min(fitnesses)
+            self.best_position = self.swarm[np.argmin(fitnesses)].position
 
         return self.best_position, self.best_fitness
 
 
-class PSOptimizer:
+class PSOptimizer(Optimizer):
     def __init__(self, num_generations, num_particles, phi1=1.5, phi2=2.0):
-        self.num_generations = num_generations
-        self.num_particles = num_particles
-        self.phi1 = phi1
-        self.phi2 = phi2
-
-    def optimize(self, run_f, params):
-        search_tree = SearchSpace(params)
-
-        lb = search_tree.get_lb()
-        ub = search_tree.get_ub()
-        f = param_decorator(run_f, search_tree)
-
-        pso = PSO(self.num_generations, self.num_particles, lb, ub, self.phi1, self.phi2)
-
-        start = timeit.default_timer()
-        best_params, score = pso.optimize(f)
-        end = timeit.default_timer() - start
-
-        best_params = search_tree.transform(best_params)
-        Result = namedtuple('Result', ['params', 'score', 'time'])
-
-        return Result(best_params, score, end)
-
-
-def func(x, y):
-    return x ** 2 + y ** 2
-
-
-def main():
-    params = OrderedDict()
-    params['x'] = {-100, 100}
-    params['y'] = ({0, 10}, {0, 100})
-
-    params2 = OrderedDict()
-    params2['x'] = 10
-    params2['y'] = 12
-
-    params = (params, params2)
-
-    opt = PSOptimizer(10, 10)
-    res = opt.optimize(func, params)
-    print res.params
-    print res.score
-    print res.time
-
-
-if __name__ == '__main__':
-    main()
+        super(PSOptimizer, self).__init__(PSO, num_generations=num_generations, num_particles=num_particles, phi1=phi1,
+                                          phi2=phi2)

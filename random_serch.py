@@ -3,23 +3,23 @@ from collections import OrderedDict
 from collections import namedtuple
 from itertools import product
 from utils import generate_sobol_sequences
-
+from Optimizer import Optimizer
+from Algorithm import Algorithm
 import numpy as np
 
 from search_space import param_decorator, SearchSpace
 
 
-class RandomSearch:
-    def __init__(self, num_runs, lb, ub, sobol):
+class RandomSearch(Algorithm):
+    def __init__(self, lb, ub, num_runs, sobol):
+        super(RandomSearch, self).__init__(lb, ub)
         self.num_runs = num_runs
-        self.lb = lb
-        self.ub = ub
         self.sobol = sobol
 
         self.best_params = None
         self.best_result = np.inf
 
-    def optimize(self, eval_fn):
+    def run(self, eval_fn):
         if self.sobol:
             params = generate_sobol_sequences(self.num_runs, self.lb, self.ub)
         else:
@@ -38,28 +38,9 @@ class RandomSearch:
         return self.best_params, self.best_result
 
 
-class RSOptimizer:
+class RSOptimizer(Optimizer):
     def __init__(self, num_runs, sobol=False):
-        self.num_runs = num_runs
-        self.sobol = sobol
-
-    def optimize(self, run_f, params):
-        search_tree = SearchSpace(params)
-
-        lb = search_tree.get_lb()
-        ub = search_tree.get_ub()
-        f = param_decorator(run_f, search_tree)
-
-        gs = RandomSearch(self.num_runs, lb, ub, self.sobol)
-
-        start = timeit.default_timer()
-        best_params, score = gs.optimize(f)
-        end = timeit.default_timer() - start
-
-        best_params = search_tree.transform(best_params)
-        Result = namedtuple('Result', ['params', 'score', 'time'])
-
-        return Result(best_params, score, end)
+        super(RSOptimizer, self).__init__(RandomSearch, num_runs=num_runs, sobol=sobol)
 
 
 def func(x, y):

@@ -210,41 +210,11 @@ def param_decorator(f, ss):
     return decorated_f
 
 
-def main():
-    par = Variable(1, 5, int)
-    cvar = ContinuousVariable(*par)
-    print cvar
-    return
+class Evaluator(object):
+    def __init__(self, eval_fn, search_space):
+        self.eval_fn = eval_fn
+        self.search_space = search_space
 
-    params = OrderedDict()
-    params['epochs'] = {1, 10}
-    params['neurons'] = (
-        [{1, 4}],
-        [{1, 4}, {1, 4}]
-    )
-
-    st = SearchSpace(params)
-    print st.variables
-    lb = st.get_lb()
-    ub = st.get_ub()
-    print st.transform(np.random.uniform(lb, ub))
-
-    return
-    # params = DescreteVariable(6, ContinousVariable(2, 10))
-    print params
-
-    # return
-    lb = [i.get_lb() for i in params]
-    ub = [i.get_ub() for i in params]
-    print lb, ub
-
-    for i in params:
-        i.set_internal_state(1.2)
-
-    print params.get_value()
-    # for i in params:
-    #     print i.get_value()
-
-
-if __name__ == '__main__':
-    main()
+    def eval(self, *params):
+        params = self.search_space.transform(params)
+        return self.eval_fn(**params)
