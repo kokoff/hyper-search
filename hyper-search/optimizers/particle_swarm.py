@@ -1,7 +1,5 @@
 import numpy as np
 
-from scoop import futures
-
 from Algorithm import Algorithm
 from Optimizer import Optimizer
 from utils import generate_sobol_sequences

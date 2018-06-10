@@ -1,6 +1,6 @@
-from particle_swarm import PSOptimizer
-from random_search import RSOptimizer
-from grid_search import GSOptimizer
+from optimizers.particle_swarm import PSOptimizer
+from optimizers.random_search import RSOptimizer
+from optimizers.grid_search import GSOptimizer
 from search_space import Variable, Choice
 
 

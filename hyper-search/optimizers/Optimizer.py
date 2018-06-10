@@ -1,6 +1,5 @@
-from search_space import SearchSpace, param_decorator, Evaluator
+from search_space import SearchSpace, Evaluator
 import timeit
-from collections import namedtuple
 
 
 class Optimizer(object):
