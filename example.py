@@ -1,5 +1,5 @@
 from particle_swarm import PSOptimizer
-from random_serach import RSOptimizer
+from random_search import RSOptimizer
 from grid_search import GSOptimizer
 from search_space import Variable, Choice
 
