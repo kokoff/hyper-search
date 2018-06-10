@@ -1,14 +1,11 @@
 import numpy as np
-from numpy.random import rand
-from collections import OrderedDict
-import timeit
-from collections import namedtuple
 
-from search_space import param_decorator, SearchSpace
-from utils import generate_sobol_sequences
-from Optimizer import Optimizer
-from Algorithm import Algorithm
 from scoop import futures
+
+from Algorithm import Algorithm
+from Optimizer import Optimizer
+from utils import generate_sobol_sequences
+from utils import argmin
 
 
 class Particle:
@@ -45,7 +42,7 @@ class Particle:
         return self.position
 
     def evaluate_fitness(self):
-        fitness = self.evaluator.eval(*self.position)
+        fitness = self.evaluator.eval(self.position)
 
         if fitness < self.best_fitness:
             self.best_fitness = fitness
@@ -54,43 +51,53 @@ class Particle:
 
 
 class PSO(Algorithm):
-    def __init__(self, lb, ub, num_generations, num_particles, phi1=1.5, phi2=2.0):
-        super(PSO, self).__init__(lb, ub)
+    def __init__(self, lb, ub, parallel, num_generations, num_particles, phi1, phi2, init):
+        super(PSO, self).__init__(lb, ub, parallel)
 
         self.num_generations = num_generations
         self.num_particles = num_particles
 
-        positions = generate_sobol_sequences(num_particles, lb, ub)
+        positions = self.initialize(num_particles, lb, ub, init)
         self.swarm = [Particle(pos, phi1, phi2, lb, ub) for pos in positions]
 
         self.best_fitness = np.inf
         self.best_position = None
 
+    def initialize(self, num_particles, lb, ub, init):
+        if init == 'sobol':
+            return generate_sobol_sequences(num_particles, lb, ub)
+        elif init == 'uniform':
+            return [np.random.uniform(lb, ub) for _ in range(num_particles)]
+        elif init == 'normal':
+            means = np.mean([lb, ub], axis=0)
+            stds = (means - lb) / 3
+            return [np.random.normal(means, stds) for _ in range(num_particles)]
+
     def run(self, evaluator):
         for particle in self.swarm:
             particle.set_eval_fn(evaluator)
 
-        # evaluate particle
-        fitnesses = list(futures.map(lambda p: p.evaluate_fitness(), self.swarm))
+        for _ in range(self.num_generations + 1):
+            # evaluate particles
+            fitnesses = list(self.map(lambda p: p.evaluate_fitness(), self.swarm))
 
-        self.best_fitness = np.min(fitnesses)
-        self.best_position = self.swarm[np.argmin(fitnesses)].position
+            # current best particle
+            current_best_fitness = min(fitnesses)
+            current_best_position = self.swarm[argmin(fitnesses)].position
 
-        for i in range(self.num_generations):
+            # overall best particle
+            if current_best_fitness <= self.best_fitness:
+                self.best_fitness = current_best_fitness
+                self.best_position = current_best_position
 
-            # update particle
+            # update particles
             for particle in self.swarm:
                 particle.update_position(self.best_position)
-
-            # evaluate particle
-            fitnesses = list(futures.map(lambda p: p.evaluate_fitness(), self.swarm))
-            self.best_fitness = np.min(fitnesses)
-            self.best_position = self.swarm[np.argmin(fitnesses)].position
 
         return self.best_position, self.best_fitness
 
 
 class PSOptimizer(Optimizer):
-    def __init__(self, num_generations, num_particles, phi1=1.5, phi2=2.0):
+    def __init__(self, num_generations, num_particles, phi1=1.5, phi2=2.0, init='sobol'):
         super(PSOptimizer, self).__init__(PSO, num_generations=num_generations, num_particles=num_particles, phi1=phi1,
-                                          phi2=phi2)
+                                          phi2=phi2, init=init)

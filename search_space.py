@@ -215,6 +215,6 @@ class Evaluator(object):
         self.eval_fn = eval_fn
         self.search_space = search_space
 
-    def eval(self, *params):
+    def eval(self, params):
         params = self.search_space.transform(params)
         return self.eval_fn(**params)

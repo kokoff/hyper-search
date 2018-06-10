@@ -10,3 +10,9 @@ def generate_sobol_sequences(num_sequences, lb, ub):
         sequence = sequence + lb
         sequences.append(sequence)
     return sequences
+
+
+def argmin(lst):
+    minimum = min(lst)
+    index = lst.index(minimum)
+    return index

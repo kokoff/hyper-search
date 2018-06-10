@@ -1,23 +1,11 @@
 from particle_swarm import PSOptimizer
-from random_serch import RSOptimizer
+from random_serach import RSOptimizer
 from grid_search import GSOptimizer
 from search_space import Variable, Choice
 
 
 def func(x, y):
-    return x ** 2 + y ** 2
-
-
-def pso():
-    params = {}
-    params['x'] = Variable(-100000, 100000, float)
-    params['y'] = Variable(-100000, 100000, float)
-
-    opt = PSOptimizer(100, 100)
-    res = opt.optimize(func, params)
-    print res.params
-    print res.score
-    print res.time
+    return (1 - x) ** 2 + 100 * (y - x ** 2) ** 2
 
 
 def grid_search():
@@ -36,13 +24,24 @@ def random_search():
     params['x'] = Variable(0, 100, float)
     params['y'] = Choice(Variable(10, 100, int), Variable(0, 10, float))
 
-    opt = RSOptimizer(100)
-    res = opt.optimize(func, params)
+    opt = RSOptimizer(10000)
+    res = opt.optimize(func, params, parallel=True)
+
+    print res
+
+
+def pso():
+    params = {}
+    params['x'] = Variable(-100, 100, float)
+    params['y'] = Variable(-100, 100, float)
+
+    opt = PSOptimizer(100, 100, init='normal')
+    res = opt.optimize(func, params, parallel=False)
 
     print res
 
 
 if __name__ == '__main__':
-    # grid_search()
-    # random_search()
+    grid_search()
+    random_search()
     pso()

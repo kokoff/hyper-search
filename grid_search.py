@@ -1,33 +1,29 @@
-import timeit
-from collections import OrderedDict
-from collections import namedtuple
 from itertools import product
-from Optimizer import Optimizer
 
 import numpy as np
-from Algorithm import Algorithm
 
-from search_space import param_decorator, SearchSpace
+from Algorithm import Algorithm
+from Optimizer import Optimizer
+from utils import argmin
 
 
 class GridSearch(Algorithm):
-    def __init__(self, lb, ub):
-        super(GridSearch, self).__init__(lb, ub)
+    def __init__(self, lb, ub, parallel):
+        super(GridSearch, self).__init__(lb, ub, parallel)
 
         params = []
         for l, u in zip(lb, ub):
             params.append(np.arange(l, u))
-        self.args = product(*params)
+        self.args = list(product(*params))
 
         self.best_params = None
         self.best_result = np.inf
 
-    def run(self, eval_fn):
-        for param in self.args:
-            res = eval_fn(*param)
-            if res < self.best_result:
-                self.best_result = res
-                self.best_params = param
+    def run(self, evaluator):
+        results = list(self.map(evaluator.eval, self.args))
+
+        self.best_result = np.min(results)
+        self.best_params = self.args[argmin(results)]
         return self.best_params, self.best_result
 
 

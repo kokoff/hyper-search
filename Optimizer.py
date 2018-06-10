@@ -9,14 +9,15 @@ class Optimizer(object):
         self.args = args
         self.kwargs = kwargs
 
-    def optimize(self, run_f, params):
+    def optimize(self, run_f, params, parallel=False):
+
         search_tree = SearchSpace(params)
 
         lb = search_tree.get_lb()
         ub = search_tree.get_ub()
         f = Evaluator(run_f, search_tree)
 
-        algorithm = self.algorithm(lb, ub, *self.args, **self.kwargs)
+        algorithm = self.algorithm(lb, ub, parallel, *self.args, **self.kwargs)
 
         start = timeit.default_timer()
         best_params, score = algorithm.run(f)
